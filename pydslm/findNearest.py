@@ -1,6 +1,7 @@
 """
 Load up the learned word embeddings in sys.argv[1] in memory; for a given search term q, find the 10 closest terms to q in each of the 51 states.
 
+This code is taken from: https://github.com/dbamman/geoSGLM
 """
 
 import sys,math,operator
