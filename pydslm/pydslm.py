@@ -6,6 +6,10 @@ from numpy import exp, dot, zeros, outer, random, dtype, float32 as REAL,\
     uint32, seterr, array, uint8, vstack, argsort, fromstring, sqrt, newaxis,\
     ndarray, empty, sum as np_sum, prod
 
+from gensim import utils, matutils  # utility fnc for pickling, common scipy operations etc
+from six import iteritems, itervalues, string_types
+from six.moves import xrange
+
 import logging
 logger = logging.getLogger("gensim.models.word2vec")
 
@@ -150,4 +154,30 @@ class DTWord2Vec(Word2Vec):
             self.syn1neg = zeros((len(self.vocab), self.layer1_size),dtype=REAL)
         self.syn0norm = None
         return
+
+    def save_word2vec_format(self, fname, fvocab=None, binary=False):
+        """
+        Store the input-hidden weight matrix in the same format used by the original
+        C word2vec-tool, for compatibility.
+        """
+        if fvocab is not None:
+            logger.info("Storing vocabulary in %s" % (fvocab))
+            with utils.smart_open(fvocab, 'wb') as vout:
+                for word, vocab in sorted(iteritems(self.vocab), key=lambda item: -item[1].count):
+                    vout.write(utils.to_utf8("%s %s\n" % (word, vocab.count)))
+
+        logger.info("storing %sx%s projection weights into %s" % (len(self.vocab), self.layer1_size, fname))
+        assert (len(self.vocab), self.layer1_size) == self.embeddings_map["MAIN"].shape
+        with utils.smart_open(fname, 'wb') as fout:
+            fout.write(utils.to_utf8("%s %s\n" % self.embeddings_map["MAIN"].shape))
+
+            for signal in ['MAIN'] + sorted(list(self.signals)):
+                emb_vecs = self.embeddings_map[signal]
+                # store in sorted order: most frequent words at the top
+                for word, vocab in sorted(iteritems(self.vocab), key=lambda item:-item[1].count):
+                    row = emb_vecs[vocab.index]
+                    if binary:
+                        fout.write(utils.to_utf8(signal) + b" " + utils.to_utf8(word) + b" " + row.tostring())
+                    else:
+                        fout.write(utils.to_utf8("%s %s %s\n" % (signal, word, ' '.join("%f" % val for val in row))))
 
